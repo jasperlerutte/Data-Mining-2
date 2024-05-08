@@ -8,5 +8,5 @@ from dotenv import load_dotenv, dotenv_values
 load_dotenv()
 
 # accessing and printing value
-path = os.getenv("DATA_PATH")
-print(os.getenv("DATA_PATH"))
+path = os.getenv("DATA_FOLDER")
+print(path)
