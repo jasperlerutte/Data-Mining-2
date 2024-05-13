@@ -1,1 +1,4 @@
 .env
+
+# Ignore everything in the Data folder
+Data/*
