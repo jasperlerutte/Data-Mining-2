@@ -1,9 +1,15 @@
+import os.path
+
 from numba import cuda
 import numpy as np
+import uuid
+import csv
 import xgboost as xgb
 from utils.load_data import load_train_val_test_split
-from ray import tune
+from lambda_mart.normalized_discounted_cumulative_gain import ndcg_weighted
+from ray import tune, train
 from ray.tune.schedulers import ASHAScheduler
+from ray.train import Checkpoint
 from sklearn.metrics import ndcg_score
 
 
@@ -11,8 +17,8 @@ from sklearn.metrics import ndcg_score
 xgb.config_context(verbosity=2, use_rmm=True)
 
 config = {
-    "eta": tune.loguniform(0.01, 0.5),
-    "max_depth": tune.randint(3, 15),
+    "eta": tune.loguniform(0.01, 0.2),
+    "max_depth": tune.randint(3, 10),
     "min_child_weight": tune.randint(1, 50),
     "subsample": tune.uniform(0.1, 1.0),
     "colsample_bytree": tune.uniform(0.5, 1.0),
@@ -56,17 +62,20 @@ def train_xgb_ranker(config):
 
     ranker.fit(X=X_train, y=y_train, verbose=True, eval_set=[(X_val, y_val)])
 
-    ndcg_scores = []
-    for qid in X_test["qid"].unique():
-        query = X_test[X_test["qid"] == qid]
-        predictions = ranker.predict(query)
-        print(predictions)
 
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    model_id = str(uuid.uuid4())
+    model_path = os.path.join(current_dir, "model_checkpoints", model_id + ".json")
+    ranker.save_model(model_path)
 
+    training_history = ranker.evals_result()
 
     scores = ranker.predict(X_test)
+    sorted_idx = np.argsort(scores)[::-1]
+    scores = scores[sorted_idx]
+
     print(scores)
-    return {"ndcg": scores[0]}
+    train.report(metrics={"ndcg": scores[0], "model_path": model_path, "training_history": training_history, "model_id": model_id})
 
 
 asha_sched = ASHAScheduler(metric="ndcg", mode="max")
@@ -76,7 +85,7 @@ analysis = tune.run(
     config=config,
     num_samples=2,
     scheduler=asha_sched,
-    resources_per_trial={"cpu": 8},
+    resources_per_trial={"cpu": 8, "gpu": 1},
     progress_reporter=tune.CLIReporter(metric_columns=["score"]),
     trial_dirname_creator=lambda trial: "tune_trial_{}".format(trial.trial_id),
 )
@@ -84,12 +93,15 @@ analysis = tune.run(
 print("Best hyperparameters found were: ", analysis.get_best_config("ndcg", "max"))
 
 best_trial = analysis.get_best_trial(metric="ndcg", mode="max")
-best_checkpoint = best_trial.checkpoint.value
+best_model_path = best_trial.last_result["model_path"]
 best_model = xgb.XGBRanker()
-best_model.load_model(best_checkpoint)
-# Retrieve training history
+best_model.load_model(best_model_path)
 training_history = best_trial.last_result["training_history"]
 
-# Print training scores over all epochs
-for epoch, score in enumerate(training_history["ndcg"]):
-    print(f"Epoch {epoch + 1}: NDCG = {score}")
+# save training history to a file
+with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "validation_scores", f"training_history_{best_trial.last_result['model_id']}.csv"), "w") as f:
+    list_history = training_history["validation_0"]['ndcg']
+    writer = csv.writer(f)
+    writer.writerow(list_history)
+
+
