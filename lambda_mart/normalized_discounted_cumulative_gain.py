@@ -33,5 +33,5 @@ if __name__=="__main__":
     # Example usage:
     preds = [0.8, 0.5, 0.6, 0.9, 0.4, 0.7, 0.3, 0.2, 0.1, 0.5]  # Example predicted relevance scores for 10 hotels
     labels = [1, 2, 0, 1, 0, 2, 1, 0, 0, 1]  # Example labels for 10 hotels
-    ndcg_at_5 = ndcg(preds, labels)
+    ndcg_at_5 = ndcg_weighted(preds, labels, k=5)
     print("NDCG@5:", ndcg_at_5)
