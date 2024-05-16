@@ -2,3 +2,4 @@
 
 # Ignore everything in the Data folder
 Data/*
+feature_engineering/Data/no_missing_values.csv

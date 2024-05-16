@@ -5,24 +5,26 @@ import matplotlib.pyplot as plt
 
 # Get the current working directory of the script and read data
 current_dir = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0]
-csv_train = os.path.join(current_dir, 'data', 'training_set_VU_DM.csv')
-csv_test = os.path.join(current_dir, 'data', 'test_set_VU_DM.csv')
+# csv_train = os.path.join(current_dir, 'Data', 'training_set_VU_DM.csv')
+# csv_test = os.path.join(current_dir, 'Data', 'test_set_VU_DM.csv')
 
-# Read the CSV file into a DataFrame
-train = pd.read_csv(csv_train)
-test = pd.read_csv(csv_test)
+# # Read the CSV file into a DataFrame
+# train = pd.read_csv(csv_train)
+# test = pd.read_csv(csv_test)
 
-# combine train and test data and add column to indicate whether row is from train or test
-train['is_train'] = 1
-test['is_train'] = 0
-df = pd.concat([train, test], axis=0)
+# # combine train and test data and add column to indicate whether row is from train or test
+# train['is_train'] = 1
+# test['is_train'] = 0
+# df = pd.concat([train, test], axis=0)
+df = pd.read_csv('C:/Users/esrio_0v2bwuf/Desktop/Master_AI/Data_Mining_Techniques/Assignments/Assignment2/Data-Mining-2/feature_engineering/Data/no_missing_values.csv')
+
 df['month'] = pd.to_datetime(df['date_time']).dt.month
 print(df.head())
 
 # print the column names of df
-print(train.columns)
-print(test.columns)
-print(df.columns)
+# print(train.columns)
+# print(test.columns)
+# print(df.columns)
 
 
 def normalise(data, cols, respect):
@@ -51,5 +53,10 @@ df_norm = log_transform(df_norm, log_transform_cols)
 for wrt in wrt_cols:
     df_norm = normalise(df_norm, norm_cols, wrt)
 
-df.to_csv(os.path.join(current_dir, 'data', 'df.csv'), index=False)
-df_norm.to_csv(os.path.join(current_dir, 'data', 'df_norm.csv'), index=False)
+print('finished with normalizations')
+
+df.to_csv(os.path.join(current_dir, 'Data', 'df.csv'), index=False)
+print('finished with df.csv')
+
+df_norm.to_csv(os.path.join(current_dir, 'Data', 'df_norm.csv'), index=False)
+print('finished with df_norm.csv')
