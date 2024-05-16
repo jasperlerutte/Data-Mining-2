@@ -1,11 +1,13 @@
+import itertools
 import os.path
 import uuid
 import csv
 import xgboost as xgb
 from utils.load_data import load_train_val_test_split, load_competition_data
-from lambda_mart.normalized_discounted_cumulative_gain import ndcg_weighted
+from lambda_mart.normalized_discounted_cumulative_gain import ndcg_weighted, get_positions_target
 from ray import tune, train
 from ray.tune.schedulers import ASHAScheduler
+from lambda_mart.plot_results import plot_feature_importance_xgboost_ranker, plot_barchart_positions
 
 
 xgb.config_context(verbosity=2, use_rmm=True)
@@ -26,7 +28,7 @@ config = {
 
 def train_xgb_ranker(config):
     train_data, val_data, test_data = load_train_val_test_split(
-        "training_set_VU_DM.csv", n_rows=1000,
+        "training_set_VU_DM.csv", n_rows=100000,
         drop_original_targets=True, seed=420)
 
     y_train = train_data["label"]
@@ -97,52 +99,90 @@ analysis = tune.run(
     time_budget_s=3600*YOUR_TIME_BUDGET_IN_HOURS
 )
 
-# Get the best model and save it
-print("Best hyperparameters found were: ", analysis.get_best_config("ndcg", "max"))
+
+current_dir = os.path.dirname(os.path.realpath(__file__))
 
 best_trial = analysis.get_best_trial(metric="ndcg", mode="max")
 best_model_path = best_trial.last_result["model_path"]
 best_model = xgb.XGBRanker()
 best_model.load_model(best_model_path)
 
+# Get the best hyperparameters and save them
+print("Best hyperparameters found were: ", analysis.get_best_config("ndcg", "max"))
+with open(os.path.join(current_dir, "model_checkpoints",
+    f"hyperparameters_{best_trial.last_result['model_id']}.csv"), "w", newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow(["Hyperparameter", "Value"])
+    for key, value in analysis.get_best_config("ndcg", "max").items():
+        writer.writerow([key, value])
+
 # save training history to a file
 training_history = best_trial.last_result["training_history"]
-with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "validation_scores",
+with open(os.path.join(current_dir, "validation_scores",
                        f"training_history_{best_trial.last_result['model_id']}.csv"),
-          "w") as f:
+          "w", newline='') as f:
     list_history = training_history["validation_0"]['ndcg']
     writer = csv.writer(f)
-    writer.writerow(list_history)
+    writer.writerow(["iteration", "ndcg_score"])
+    for i in range(len(list_history)):
+        writer.writerow([i, list_history[i]])
 
 # load our own holdout set again and get predictions
 _, _, test_data = load_train_val_test_split("training_set_VU_DM.csv",
-                                            drop_original_targets=True, seed=420)
+                                            drop_original_targets=True, seed=420,
+                                            n_rows=100000)
 y_test = test_data["label"]
 X_test = test_data.drop(columns=["label"])
 scores = best_model.predict(X_test)
 X_test["score"] = scores
 
+print(f"Running predictions on own test set.")
 ndcg_score = 0
 n_queries = 0
+booked_positions = []
+clicked_positions = []
 for qid in X_test['qid'].unique():
     qid_rows = X_test[X_test['qid'] == qid]
     qid_scores = qid_rows['score']
     qid_labels = y_test[qid_rows.index]
     ndcg_score += ndcg_weighted(qid_scores, qid_labels)
+    booked_positions.extend(get_positions_target(scores=qid_scores, y_true=qid_labels, target_label=5))
+    clicked_positions.extend(get_positions_target(scores=qid_scores, y_true=qid_labels, target_label=1))
     n_queries += 1
 
 ndcg_score /= n_queries
 
-print("NDCG score on own test set: ", ndcg_score)
-print("Running predictions on competition test set...")
+print(f"NDCG score on own test set of {n_queries} queries: ", ndcg_score)
+
+# save ndcg score to a file
+with open(os.path.join(current_dir, "validation_scores",
+                        f"ndcg_score_{best_trial.last_result['model_id']}.csv"), "w", newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow(['ndcg', 'queries'])
+    writer.writerow([ndcg_score, n_queries])
+
+# save predicted positions of the clicked and booked hotels in our test set
+with open(os.path.join(current_dir, "validation_scores",
+    f"positions_{best_trial.last_result['model_id']}.csv"), "w", newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow(['clicked', 'booked'])
+    for clicked, booked in itertools.zip_longest(clicked_positions, booked_positions):
+        writer.writerow([clicked, booked])
+
+plot_path = os.path.join(current_dir, "plots")
+plot_barchart_positions(positions=booked_positions, model_id=best_trial.last_result["model_id"], target="booked", save_path=plot_path)
+plot_barchart_positions(positions=clicked_positions, model_id=best_trial.last_result["model_id"], target="clicked", save_path=plot_path)
+plot_feature_importance_xgboost_ranker(model=best_model, model_id=best_trial.last_result["model_id"],
+                                       k=10, save_feature_importance=True, save_path=plot_path)
 
 # load competition test set
+print("Running predictions on competition test set...")
 competition_test_data = load_competition_data("test_set_VU_DM.csv")
 scores = best_model.predict(competition_test_data)
 competition_test_data["score"] = scores
 
-with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "predictions",
-                       f"predictions_{best_trial.last_result['model_id']}.csv"), "w") as f:
+with open(os.path.join(current_dir, "predictions",
+                       f"predictions_{best_trial.last_result['model_id']}.csv"), "w", newline='') as f:
     f.write("srch_id,prop_id\n")
     for qid in competition_test_data['qid'].unique():
         qid_rows = competition_test_data[competition_test_data['qid'] == qid]
