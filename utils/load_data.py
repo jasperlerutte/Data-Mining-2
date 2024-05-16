@@ -26,7 +26,9 @@ def load_competition_data(data_file: str, n_rows: int = None) -> pd.DataFrame:
         df = pd.read_csv(data_path)
     df.rename(columns={"srch_id": "qid"}, inplace=True)
     df = df.sort_values(by="qid")
-    df.drop(columns=["date_time"], inplace=True)
+
+    if "date_time" in df.columns:
+        df.drop(columns=["date_time"], inplace=True)
     return df
 
 
@@ -38,7 +40,12 @@ def load_train_val_test_split(data_file: str, n_rows: int = None, frac_val: floa
     pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     np.random.seed(seed)
     df = load_data(data_file, n_rows=n_rows)
-    df.drop(columns=["date_time", "gross_bookings_usd", "position"], inplace=True)
+
+    columns_to_drop = ["date_time", "gross_bookings_usd", "position"]
+
+    for column in columns_to_drop:
+        if column in df.columns:
+            df.drop(columns=[column], inplace=True)
 
     # `Create targets`
     df = add_target_column(df, booking_score=booking_score,
