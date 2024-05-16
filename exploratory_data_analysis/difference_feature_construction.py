@@ -1,8 +1,4 @@
-import os
 import pandas as pd
-from dotenv import load_dotenv
-import matplotlib.pyplot as plt
-
 from utils.load_data import load_data
 
 
