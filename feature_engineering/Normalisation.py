@@ -30,41 +30,12 @@ print(df.head())
 def normalise(data, cols, respect):
     for col in cols:
         data[f'{col}_norm_{respect}'] = data.groupby(respect)[col].transform(lambda x: (x - x.mean()) / x.std())
-        #check if missing values are created
-        if data[f'{col}_norm_{respect}'].isna().any():
-            print(f"NaN values detected in column {col}_norm_{respect} after normalization. in jasper his function")
-    return data
-
-def normalise(data, cols, respect):
-    for col in cols:
-        group_stats = data.groupby(respect)[col].agg(['mean', 'std'])
-        group_stats = group_stats.rename(columns={'mean': f'{col}_mean', 'std': f'{col}_std'})
-        
-        data = data.merge(group_stats, on=respect, how='left')
-        
-        std_col = f'{col}_std'
-        norm_col = f'{col}_norm_{respect}'
-        
-        data[norm_col] = (data[col] - data[f'{col}_mean']) / data[std_col]
-        
-        # Check for any NaN values produced
-        if data[norm_col].isna().any():
-            print(f"NaN values detected in column {norm_col} after normalization. in the new function")
-        
-        # Drop temporary mean and std columns
-        data.drop(columns=[f'{col}_mean', f'{col}_std'], inplace=True)
-    
     return data
 
 
 def log_transform(data, cols):
     for col in cols:
-        # Ensure no non-positive values exist before log transformation
-        if (data[col] <= 0).any():
-            print(f"Non-positive values found in {col}. Cannot apply log transform.")
-        else:
-            data[col] = np.log1p(data[col])
-
+        data[col] = np.log1p(data[col])
     return data
 
 
@@ -72,23 +43,20 @@ def log_transform(data, cols):
 log_transform_cols = ['price_usd', 'orig_destination_distance', 'comp1_rate_percent_diff','comp2_rate_percent_diff',
                       'comp3_rate_percent_diff', 'comp4_rate_percent_diff', 'comp5_rate_percent_diff',
                       'comp6_rate_percent_diff', 'comp7_rate_percent_diff', 'comp8_rate_percent_diff']
-
 norm_cols = ['prop_log_historical_price', 'price_usd', 'orig_destination_distance', 'comp1_rate_percent_diff',
              'comp2_rate_percent_diff', 'comp3_rate_percent_diff', 'comp4_rate_percent_diff', 'comp5_rate_percent_diff',
              'comp6_rate_percent_diff', 'comp7_rate_percent_diff', 'comp8_rate_percent_diff']
-
 wrt_cols = ['srch_id', 'prop_id', 'month', 'srch_booking_window', 'srch_destination_id', 'prop_country_id']
-
 df_norm = df.copy()
 df_norm = log_transform(df_norm, log_transform_cols)
 
 for wrt in wrt_cols:
     df_norm = normalise(df_norm, norm_cols, wrt)
 
-# print('finished with normalizations')
+print('finished with normalizations')
 
-# df.to_csv(os.path.join(current_dir, 'Data', 'df.csv'), index=False)
-# print('finished with df.csv')
+df.to_csv(os.path.join(current_dir, 'Data', 'df.csv'), index=False)
+print('finished with df.csv')
 
-# df_norm.to_csv(os.path.join(current_dir, 'Data', 'df_norm.csv'), index=False)
-# print('finished with df_norm.csv')
+df_norm.to_csv(os.path.join(current_dir, 'Data', 'df_norm.csv'), index=False)
+print('finished with df_norm.csv')

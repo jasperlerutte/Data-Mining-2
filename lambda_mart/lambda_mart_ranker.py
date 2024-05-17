@@ -12,8 +12,8 @@ from lambda_mart.plot_results import plot_feature_importance_xgboost_ranker, plo
 
 xgb.config_context(verbosity=2, use_rmm=True)
 YOUR_TIME_BUDGET_IN_HOURS = 48
-YOUR_TEST_FILE = "test_notnormal.csv"
-YOUR_TRAIN_FILE = "train_notnormal.csv"
+YOUR_TEST_FILE = "C:/Users/esrio_0v2bwuf/Desktop/Master_AI/Data_Mining_Techniques/Assignments/Assignment2/Data-Mining-2/Data/test_complete.csv"
+YOUR_TRAIN_FILE = "C:/Users/esrio_0v2bwuf/Desktop/Master_AI/Data_Mining_Techniques/Assignments/Assignment2/Data-Mining-2/Data/train_complete.csv"
 
 config = {
     "eta": tune.loguniform(0.01, 0.2),
