@@ -16,7 +16,7 @@ def load_data(data_file: str, n_rows: int = None) -> pd.DataFrame:
     return df
 
 
-def load_competition_data(data_file: str, n_rows: int = None) -> pd.DataFrame:
+def load_competition_data(data_file: str, n_rows: int = None, drop_targets = True) -> pd.DataFrame:
     load_dotenv()
     folder = os.getenv("DATA_FOLDER")
     data_path = os.path.join(folder, data_file)
@@ -25,10 +25,12 @@ def load_competition_data(data_file: str, n_rows: int = None) -> pd.DataFrame:
     else:
         df = pd.read_csv(data_path)
     df.rename(columns={"srch_id": "qid"}, inplace=True)
-    df = df.sort_values(by="qid")
 
     if "date_time" in df.columns:
         df.drop(columns=["date_time"], inplace=True)
+
+    if drop_targets and "booking_bool" in df.columns and "click_bool" in df.columns:
+        df.drop(columns=["booking_bool", "click_bool"], inplace=True)
     return df
 
 
@@ -57,18 +59,17 @@ def load_train_val_test_split(data_file: str, n_rows: int = None, frac_val: floa
     # Rename the srch_id column to qid
     df.rename(columns={"srch_id": "qid"}, inplace=True)
 
-    # sort dataframe by qid
-    df = df.sort_values(by="qid")
-
+    n_unique_qids = df["qid"].nunique()
     # randomly split in test and training set based on qid
-    train_size = int((1 - frac_test) * df["qid"].nunique())
-    train_qids = np.random.choice(df["qid"].unique(), train_size, replace=False)
+    train_size = int((1 - frac_test) * n_unique_qids)
+    train_qids = np.random.choice(n_unique_qids, train_size, replace=False)
     train = df[df["qid"].isin(train_qids)]
     test = df[~df["qid"].isin(train_qids)]
 
     # split training set into train and validation set
-    train_size = int((1 - frac_val) * train["qid"].nunique())
-    train_qids = np.random.choice(train["qid"].unique(), train_size,
+    n_unique_qids_train = train["qid"].nunique()
+    train_size = int((1 - frac_val) * n_unique_qids_train)
+    train_qids = np.random.choice(n_unique_qids_train, train_size,
                                   replace=False)
     val = train[~train["qid"].isin(train_qids)]
     train = train[train["qid"].isin(train_qids)]
