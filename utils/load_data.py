@@ -5,22 +5,25 @@ from dotenv import load_dotenv
 from utils.create_targets import add_target_column
 
 
-# def load_data(data_file: str, n_rows: int = None) -> pd.DataFrame:
-#     load_dotenv()
-#     folder = os.getenv("DATA_FOLDER")
-#     data_path = os.path.join(folder, data_file)
-#     if n_rows is not None:
-#         df = pd.read_csv(data_path, nrows=n_rows)
-#     else:
-#         df = pd.read_csv(data_path)
-#     return df
+def load_data(data_file: str, n_rows: int = None) -> pd.DataFrame:
+    load_dotenv()
+    folder = os.getenv("DATA_FOLDER")
+    data_path = os.path.join(folder, data_file)
+    if n_rows is not None:
+        df = pd.read_csv(data_path, nrows=n_rows)
+    else:
+        df = pd.read_csv(data_path)
+    return df
 
 
 def load_competition_data(data_file: str, n_rows: int = None) -> pd.DataFrame:
+    load_dotenv()
+    folder = os.getenv("DATA_FOLDER")
+    data_path = os.path.join(folder, data_file)
     if n_rows is not None:
-        df = pd.read_csv("C:/Users/esrio_0v2bwuf/Desktop/Master_AI/Data_Mining_Techniques/Assignments/Assignment2/Data-Mining-2/Data/test_complete.csv", nrows=n_rows)
+        df = pd.read_csv(data_path, nrows=n_rows)
     else:
-        df = pd.read_csv("C:/Users/esrio_0v2bwuf/Desktop/Master_AI/Data_Mining_Techniques/Assignments/Assignment2/Data-Mining-2/Data/test_complete.csv")
+        df = pd.read_csv(data_path)
     df.rename(columns={"srch_id": "qid"}, inplace=True)
     df = df.sort_values(by="qid")
 
@@ -36,11 +39,7 @@ def load_train_val_test_split(data_file: str, n_rows: int = None, frac_val: floa
                               seed: int = 420) -> tuple[
     pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     np.random.seed(seed)
-
-    if n_rows is not None:
-        df = pd.read_csv("C:/Users/esrio_0v2bwuf/Desktop/Master_AI/Data_Mining_Techniques/Assignments/Assignment2/Data-Mining-2/Data/train_complete.csv", nrows=n_rows)
-    else:
-        df = pd.read_csv("C:/Users/esrio_0v2bwuf/Desktop/Master_AI/Data_Mining_Techniques/Assignments/Assignment2/Data-Mining-2/Data/train_complete.csv")
+    df = load_data(data_file, n_rows=n_rows)
 
     columns_to_drop = ["date_time", "gross_bookings_usd", "position"]
 

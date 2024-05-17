@@ -5,41 +5,46 @@ import uuid
 import csv
 import xgboost as xgb
 
-# Add the parent directory and the utils directory to the sys.path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-utils_dir = os.path.join(parent_dir, 'Data-Mining-2', 'utils')
+[sys.path.append(i) for i in ['.', '..']]
+                              
+# # Add the parent directory and the utils directory to the sys.path
+# current_dir = os.path.dirname(os.path.abspath(__file__))
+# parent_dir = os.path.dirname(current_dir)
+# utils_dir = os.path.join(parent_dir, 'Data-Mining-2', 'utils')
 
-sys.path.append(parent_dir)
-sys.path.append(utils_dir)
+# sys.path.append(parent_dir)
+# sys.path.append(utils_dir)
 
-# Verify the paths are added correctly
-print("Current sys.path:")
-for path in sys.path:
-    print(path)
+# # Verify the paths are added correctly
+# print("Current sys.path:")
+# for path in sys.path:
+#     print(path)
 
-# Check if utils_dir exists
-print(f"utils_dir exists: {os.path.exists(utils_dir)}")
+# # Check if utils_dir exists
+# print(f"utils_dir exists: {os.path.exists(utils_dir)}")
 
-# Check if load_data.py exists in utils_dir
-print(f"load_data.py exists: {os.path.exists(os.path.join(utils_dir, 'load_data.py'))}")
+# # Check if load_data.py exists in utils_dir
+# print(f"load_data.py exists: {os.path.exists(os.path.join(utils_dir, 'load_data.py'))}")
 
-# Check if __init__.py exists in utils_dir
-print(f"__init__.py exists: {os.path.exists(os.path.join(utils_dir, '__init__.py'))}")
+# # Check if __init__.py exists in utils_dir
+# print(f"__init__.py exists: {os.path.exists(os.path.join(utils_dir, '__init__.py'))}")
 
-# Try to import utils.load_data using __import__ to see if it is importable
-try:
-    load_data = __import__('utils.load_data', fromlist=['load_train_val_test_split', 'load_competition_data'])
-    print("Successfully imported utils.load_data using __import__")
-except ImportError as e:
-    print(f"ImportError: {e}")
+# # Try to import utils.load_data using __import__ to see if it is importable
+# try:
+#     load_data = __import__('utils.load_data', fromlist=['load_train_val_test_split', 'load_competition_data'])
+#     print("Successfully imported utils.load_data using __import__")
+# except ImportError as e:
+#     print(f"ImportError: {e}")
 
 # Import the required modules
 from utils.load_data import load_train_val_test_split, load_competition_data
 from lambda_mart.normalized_discounted_cumulative_gain import ndcg_weighted, get_positions_target
+from lambda_mart.plot_results import plot_feature_importance_xgboost_ranker, plot_barchart_positions
+
 from ray import tune, train
 from ray.tune.schedulers import ASHAScheduler
-from lambda_mart.plot_results import plot_feature_importance_xgboost_ranker, plot_barchart_positions
+
+
 
 
 
