@@ -12,7 +12,8 @@ from lambda_mart.plot_results import plot_feature_importance_xgboost_ranker, plo
 
 xgb.config_context(verbosity=2, use_rmm=True)
 YOUR_TIME_BUDGET_IN_HOURS = 48
-
+YOUR_TEST_FILE = "test_notnormal.csv"
+YOUR_TRAIN_FILE = "train_notnormal.csv"
 
 config = {
     "eta": tune.loguniform(0.01, 0.2),
@@ -28,7 +29,7 @@ config = {
 
 def train_xgb_ranker(config):
     train_data, val_data, test_data = load_train_val_test_split(
-        "C:/Users/esrio_0v2bwuf/Desktop/Master_AI/Data_Mining_Techniques/Assignments/Assignment2/Data-Mining-2/Data/train_complete.csv",
+        YOUR_TRAIN_FILE, n_rows=100000,
         drop_original_targets=True, seed=420)
 
     y_train = train_data["label"]
@@ -91,7 +92,7 @@ asha_sched = ASHAScheduler(metric="ndcg", mode="max")
 analysis = tune.run(
     train_xgb_ranker,
     config=config,
-    num_samples=2,
+    num_samples=-1,
     scheduler=asha_sched,
     resources_per_trial={"cpu": 8, "gpu": 1},
     progress_reporter=tune.CLIReporter(metric_columns=["score"]),
@@ -128,9 +129,9 @@ with open(os.path.join(current_dir, "validation_scores",
         writer.writerow([i, list_history[i]])
 
 # load our own holdout set again and get predictions
-_, _, test_data = load_train_val_test_split("C:/Users/esrio_0v2bwuf/Desktop/Master_AI/Data_Mining_Techniques/Assignments/Assignment2/Data-Mining-2/Data/train_complete.csv",
+_, _, test_data = load_train_val_test_split(YOUR_TRAIN_FILE,
                                             drop_original_targets=True, seed=420,
-                                            )
+                                            n_rows=100000)
 y_test = test_data["label"]
 X_test = test_data.drop(columns=["label"])
 scores = best_model.predict(X_test)
@@ -162,7 +163,7 @@ with open(os.path.join(current_dir, "validation_scores",
     writer.writerow([ndcg_score, n_queries])
 
 # save predicted positions of the clicked and booked hotels in our test set
-with open(os.path.join(current_dir, "validation_scores",
+with open(os.path.join(current_dir, "plots",
     f"positions_{best_trial.last_result['model_id']}.csv"), "w", newline='') as f:
     writer = csv.writer(f)
     writer.writerow(['clicked', 'booked'])
@@ -177,7 +178,7 @@ plot_feature_importance_xgboost_ranker(model=best_model, model_id=best_trial.las
 
 # load competition test set
 print("Running predictions on competition test set...")
-competition_test_data = load_competition_data("C:/Users/esrio_0v2bwuf/Desktop/Master_AI/Data_Mining_Techniques/Assignments/Assignment2/Data-Mining-2/Data/test_complete.csv")
+competition_test_data = load_competition_data("YOUR_TEST_FILE")
 scores = best_model.predict(competition_test_data)
 competition_test_data["score"] = scores
 
