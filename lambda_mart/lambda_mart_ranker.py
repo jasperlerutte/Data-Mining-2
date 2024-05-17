@@ -6,12 +6,12 @@ import xgboost as xgb
 from utils.load_data import load_train_val_test_split, load_competition_data
 from lambda_mart.normalized_discounted_cumulative_gain import ndcg_weighted, get_positions_target
 from ray import tune, train
-from ray.tune.schedulers import ASHAScheduler
+from ray.tune.search.hyperopt import HyperOptSearch
 from lambda_mart.plot_results import plot_feature_importance_xgboost_ranker, plot_barchart_positions
 
 
 xgb.config_context(verbosity=2, use_rmm=True)
-YOUR_TIME_BUDGET_IN_HOURS = 0.005
+YOUR_TIME_BUDGET_IN_HOURS = 0.05
 YOUR_TEST_FILE = "test_notnormal.csv"
 YOUR_TRAIN_FILE = "train_notnormal.csv"
 
@@ -29,8 +29,8 @@ config = {
 
 def train_xgb_ranker(config):
     train_data, val_data, test_data = load_train_val_test_split(
-        YOUR_TRAIN_FILE, n_rows=100000,
-        drop_original_targets=True, seed=420)
+        YOUR_TRAIN_FILE,
+        drop_original_targets=True, seed=420, n_rows=10000)
 
     y_train = train_data["label"]
     X_train = train_data.drop(columns=["label"])
@@ -87,17 +87,18 @@ def train_xgb_ranker(config):
                           "training_history": training_history, "model_id": model_id})
 
 
-asha_sched = ASHAScheduler(metric="ndcg", mode="max")
+hyperopt = HyperOptSearch(metric="ndcg", mode="max")
+
 
 analysis = tune.run(
     train_xgb_ranker,
     config=config,
-    num_samples=-1,
-    scheduler=asha_sched,
+    num_samples=2,
     resources_per_trial={"cpu": 8, "gpu": 1},
     progress_reporter=tune.CLIReporter(metric_columns=["score"]),
     trial_dirname_creator=lambda trial: "tune_trial_{}".format(trial.trial_id),
-    time_budget_s=3600*YOUR_TIME_BUDGET_IN_HOURS
+    time_budget_s=3600*YOUR_TIME_BUDGET_IN_HOURS,
+    search_alg=hyperopt,
 )
 
 
@@ -131,7 +132,7 @@ with open(os.path.join(current_dir, "validation_scores",
 # load our own holdout set again and get predictions
 _, _, test_data = load_train_val_test_split(YOUR_TRAIN_FILE,
                                             drop_original_targets=True, seed=420,
-                                            n_rows=100000)
+                                            n_rows=10000)
 y_test = test_data["label"]
 X_test = test_data.drop(columns=["label"])
 scores = best_model.predict(X_test)
@@ -178,7 +179,7 @@ plot_feature_importance_xgboost_ranker(model=best_model, model_id=best_trial.las
 
 # load competition test set
 print("Running predictions on competition test set...")
-competition_test_data = load_competition_data(YOUR_TEST_FILE)
+competition_test_data = load_competition_data(YOUR_TEST_FILE, n_rows=10000)
 scores = best_model.predict(competition_test_data)
 competition_test_data["score"] = scores
 
