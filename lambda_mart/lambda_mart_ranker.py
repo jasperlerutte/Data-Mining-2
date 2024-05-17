@@ -3,7 +3,7 @@ import os.path
 import uuid
 import csv
 import xgboost as xgb
-import dotenv
+from dotenv import load_dotenv
 from utils.load_data import load_train_val_test_split, load_competition_data
 from lambda_mart.normalized_discounted_cumulative_gain import ndcg_weighted, get_positions_target
 from ray import tune, train
@@ -11,8 +11,9 @@ from ray.tune.search.hyperopt import HyperOptSearch
 from lambda_mart.plot_results import plot_feature_importance_xgboost_ranker, plot_barchart_positions
 
 
+load_dotenv()
 xgb.config_context(verbosity=2, use_rmm=True)
-YOUR_TIME_BUDGET_IN_HOURS = 0.005
+YOUR_TIME_BUDGET_IN_HOURS =10
 YOUR_TEST_FILE = os.getenv("TEST_FILE")
 YOUR_TRAIN_FILE = os.getenv("TRAIN_FILE")
 
@@ -31,7 +32,7 @@ config = {
 def train_xgb_ranker(config):
     train_data, val_data, test_data = load_train_val_test_split(
         YOUR_TRAIN_FILE,
-        drop_original_targets=True, seed=420, n_rows=10000)
+        drop_original_targets=True, seed=420)
 
     y_train = train_data["label"]
     X_train = train_data.drop(columns=["label"])
@@ -133,7 +134,7 @@ with open(os.path.join(current_dir, "validation_scores",
 # load our own holdout set again and get predictions
 _, _, test_data = load_train_val_test_split(YOUR_TRAIN_FILE,
                                             drop_original_targets=True, seed=420,
-                                            n_rows=10000)
+                                            )
 y_test = test_data["label"]
 X_test = test_data.drop(columns=["label"])
 scores = best_model.predict(X_test)
@@ -180,7 +181,7 @@ plot_feature_importance_xgboost_ranker(model=best_model, model_id=best_trial.las
 
 # load competition test set
 print("Running predictions on competition test set...")
-competition_test_data = load_competition_data(YOUR_TEST_FILE, n_rows=10000)
+competition_test_data = load_competition_data(YOUR_TEST_FILE)
 scores = best_model.predict(competition_test_data)
 competition_test_data["score"] = scores
 
