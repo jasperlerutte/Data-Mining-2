@@ -3,6 +3,7 @@ import os.path
 import uuid
 import csv
 import xgboost as xgb
+import dotenv
 from utils.load_data import load_train_val_test_split, load_competition_data
 from lambda_mart.normalized_discounted_cumulative_gain import ndcg_weighted, get_positions_target
 from ray import tune, train
@@ -11,9 +12,9 @@ from lambda_mart.plot_results import plot_feature_importance_xgboost_ranker, plo
 
 
 xgb.config_context(verbosity=2, use_rmm=True)
-YOUR_TIME_BUDGET_IN_HOURS = 0.05
-YOUR_TEST_FILE = "test_notnormal.csv"
-YOUR_TRAIN_FILE = "train_notnormal.csv"
+YOUR_TIME_BUDGET_IN_HOURS = 0.005
+YOUR_TEST_FILE = os.getenv("TEST_FILE")
+YOUR_TRAIN_FILE = os.getenv("TRAIN_FILE")
 
 config = {
     "eta": tune.loguniform(0.01, 0.2),
@@ -93,7 +94,7 @@ hyperopt = HyperOptSearch(metric="ndcg", mode="max")
 analysis = tune.run(
     train_xgb_ranker,
     config=config,
-    num_samples=2,
+    num_samples=-1,
     resources_per_trial={"cpu": 8, "gpu": 1},
     progress_reporter=tune.CLIReporter(metric_columns=["score"]),
     trial_dirname_creator=lambda trial: "tune_trial_{}".format(trial.trial_id),
