@@ -26,8 +26,11 @@ def load_competition_data(data_file: str, n_rows: int = None, drop_targets = Tru
         df = pd.read_csv(data_path)
     df.rename(columns={"srch_id": "qid"}, inplace=True)
 
-    if "date_time" in df.columns:
-        df.drop(columns=["date_time"], inplace=True)
+    columns_to_drop = ["date_time", "gross_bookings_usd", "position", "random_bool"]
+
+    for column in columns_to_drop:
+        if column in df.columns:
+            df.drop(columns=[column], inplace=True)
 
     if drop_targets and "booking_bool" in df.columns and "click_bool" in df.columns:
         df.drop(columns=["booking_bool", "click_bool"], inplace=True)
@@ -43,7 +46,7 @@ def load_train_val_test_split(data_file: str, n_rows: int = None, frac_val: floa
     np.random.seed(seed)
     df = load_data(data_file, n_rows=n_rows)
 
-    columns_to_drop = ["date_time", "gross_bookings_usd", "position"]
+    columns_to_drop = ["date_time", "gross_bookings_usd", "position", "random_bool"]
 
     for column in columns_to_drop:
         if column in df.columns:

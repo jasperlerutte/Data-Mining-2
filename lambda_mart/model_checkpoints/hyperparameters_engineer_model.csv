@@ -1,0 +1,9 @@
+Hyperparameter,Value
+eta,0.0627427
+max_depth,7
+min_child_weight,37
+subsample,0.633718
+colsample_bytree,0.691145
+n_estimators,84
+reg_lambda,3.86086e-05
+reg_alpha,3.21578e-05
