@@ -5,29 +5,107 @@ import csv
 import xgboost as xgb
 from dotenv import load_dotenv
 from utils.load_data import load_train_val_test_split, load_competition_data
-from lambda_mart.normalized_discounted_cumulative_gain import ndcg_weighted, get_positions_target
+from lambda_mart.normalized_discounted_cumulative_gain import ndcg_weighted, \
+    get_positions_target
 from ray import tune, train
 from ray.tune.search.hyperopt import HyperOptSearch
-from lambda_mart.plot_results import plot_feature_importance_xgboost_ranker, plot_barchart_positions
+from lambda_mart.plot_results import plot_feature_importance_xgboost_ranker, \
+    plot_barchart_positions
 
 
 load_dotenv()
 xgb.config_context(verbosity=2, use_rmm=True)
-YOUR_TIME_BUDGET_IN_HOURS =10
+YOUR_TIME_BUDGET_IN_HOURS = 8.5
 YOUR_TEST_FILE = os.getenv("TEST_FILE")
 YOUR_TRAIN_FILE = os.getenv("TRAIN_FILE")
 
 config = {
     "eta": tune.loguniform(0.01, 0.2),
     "max_depth": tune.randint(3, 10),
-    "min_child_weight": tune.randint(1, 50),
+    "min_child_weight": tune.randint(20, 50),
     "subsample": tune.uniform(0.1, 1.0),
-    "colsample_bytree": tune.uniform(0.5, 1.0),
-    "n_estimators": tune.randint(10, 200),
+    "colsample_bytree": tune.uniform(0.5, 0.9),
+    "n_estimators": tune.randint(20, 200),
     "reg_lambda": tune.loguniform(1e-8, 1.0),
     "reg_alpha": tune.loguniform(1e-8, 1.0),
 }
 
+points_to_evaluate = [
+    {
+        "eta": 0.106676,
+        "max_depth": 6,
+        "min_child_weight": 27,
+        "subsample": 0.251654,
+        "colsample_bytree": 0.994175,
+        "n_estimators": 185,
+        "reg_lambda": 2.24677e-07,
+        "reg_alpha": 2.91043e-08
+    },
+    {
+        "eta": 0.192781,
+        "max_depth": 5,
+        "min_child_weight": 2,
+        "subsample": 0.562526,
+        "colsample_bytree": 0.953701,
+        "n_estimators": 90,
+        "reg_lambda": 0.0440851,
+        "reg_alpha": 6.98621e-08
+    },
+    {
+        "eta": 0.12783,
+        "max_depth": 5,
+        "min_child_weight": 41,
+        "subsample": 0.468777,
+        "colsample_bytree": 0.50441,
+        "n_estimators": 74,
+        "reg_lambda": 0.000961389,
+        "reg_alpha": 0.0545764
+    },
+    {
+        "eta": 0.169153,
+        "max_depth": 4,
+        "min_child_weight": 47,
+        "subsample": 0.424544,
+        "colsample_bytree": 0.628333,
+        "n_estimators": 103,
+        "reg_lambda": 2.68638e-06,
+        "reg_alpha": 3.37178e-06
+    },
+    {
+        "eta": 0.185682,
+        "max_depth": 7,
+        "min_child_weight": 25,
+        "subsample": 0.776377,
+        "colsample_bytree": 0.681045,
+        "n_estimators": 132,
+        "reg_lambda": 0.174843,
+        "reg_alpha": 1.99049e-05
+    },
+    {
+        "eta": 0.119189,
+        "max_depth": 5,
+        "min_child_weight": 35,
+        "subsample": 0.737261,
+        "colsample_bytree": 0.651306,
+        "n_estimators": 89,
+        "reg_lambda": 6.04337e-05,
+        "reg_alpha": 9.27302e-07
+    }
+]
+
+
+train_model = [
+    {
+        "eta": 0.0627427,
+        "max_depth": 7,
+        "min_child_weight": 37,
+        "subsample": 0.633718,
+        "colsample_bytree": 0.691145,
+        "n_estimators": 84,
+        "reg_lambda": 3.86086e-05,
+        "reg_alpha": 3.21578e-05
+    },
+]
 
 def train_xgb_ranker(config):
     train_data, val_data, test_data = load_train_val_test_split(
@@ -89,20 +167,18 @@ def train_xgb_ranker(config):
                           "training_history": training_history, "model_id": model_id})
 
 
-hyperopt = HyperOptSearch(metric="ndcg", mode="max")
-
+hyperopt = HyperOptSearch(metric="ndcg", mode="max", points_to_evaluate=train_model)
 
 analysis = tune.run(
     train_xgb_ranker,
     config=config,
-    num_samples=-1,
+    num_samples=1,
     resources_per_trial={"cpu": 8, "gpu": 1},
     progress_reporter=tune.CLIReporter(metric_columns=["score"]),
     trial_dirname_creator=lambda trial: "tune_trial_{}".format(trial.trial_id),
-    time_budget_s=3600*YOUR_TIME_BUDGET_IN_HOURS,
+    time_budget_s=3600 * YOUR_TIME_BUDGET_IN_HOURS,
     search_alg=hyperopt,
 )
-
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -114,7 +190,8 @@ best_model.load_model(best_model_path)
 # Get the best hyperparameters and save them
 print("Best hyperparameters found were: ", analysis.get_best_config("ndcg", "max"))
 with open(os.path.join(current_dir, "model_checkpoints",
-    f"hyperparameters_{best_trial.last_result['model_id']}.csv"), "w", newline='') as f:
+                       f"hyperparameters_{best_trial.last_result['model_id']}.csv"),
+          "w", newline='') as f:
     writer = csv.writer(f)
     writer.writerow(["Hyperparameter", "Value"])
     for key, value in analysis.get_best_config("ndcg", "max").items():
@@ -132,6 +209,7 @@ with open(os.path.join(current_dir, "validation_scores",
         writer.writerow([i, list_history[i]])
 
 # load our own holdout set again and get predictions
+print(f"Running predictions on own test set.")
 _, _, test_data = load_train_val_test_split(YOUR_TRAIN_FILE,
                                             drop_original_targets=True, seed=420,
                                             )
@@ -139,8 +217,6 @@ y_test = test_data["label"]
 X_test = test_data.drop(columns=["label"])
 scores = best_model.predict(X_test)
 X_test["score"] = scores
-
-print(f"Running predictions on own test set.")
 ndcg_score = 0
 n_queries = 0
 booked_positions = []
@@ -150,8 +226,10 @@ for qid in X_test['qid'].unique():
     qid_scores = qid_rows['score']
     qid_labels = y_test[qid_rows.index]
     ndcg_score += ndcg_weighted(qid_scores, qid_labels)
-    booked_positions.extend(get_positions_target(scores=qid_scores, y_true=qid_labels, target_label=5))
-    clicked_positions.extend(get_positions_target(scores=qid_scores, y_true=qid_labels, target_label=1))
+    booked_positions.extend(
+        get_positions_target(scores=qid_scores, y_true=qid_labels, target_label=5))
+    clicked_positions.extend(
+        get_positions_target(scores=qid_scores, y_true=qid_labels, target_label=1))
     n_queries += 1
 
 ndcg_score /= n_queries
@@ -160,24 +238,32 @@ print(f"NDCG score on own test set of {n_queries} queries: ", ndcg_score)
 
 # save ndcg score to a file
 with open(os.path.join(current_dir, "validation_scores",
-                        f"ndcg_score_{best_trial.last_result['model_id']}.csv"), "w", newline='') as f:
+                       f"ndcg_score_{best_trial.last_result['model_id']}.csv"), "w",
+          newline='') as f:
     writer = csv.writer(f)
     writer.writerow(['ndcg', 'queries'])
     writer.writerow([ndcg_score, n_queries])
 
 # save predicted positions of the clicked and booked hotels in our test set
 with open(os.path.join(current_dir, "plots",
-    f"positions_{best_trial.last_result['model_id']}.csv"), "w", newline='') as f:
+                       f"positions_{best_trial.last_result['model_id']}.csv"), "w",
+          newline='') as f:
     writer = csv.writer(f)
     writer.writerow(['clicked', 'booked'])
     for clicked, booked in itertools.zip_longest(clicked_positions, booked_positions):
         writer.writerow([clicked, booked])
 
 plot_path = os.path.join(current_dir, "plots")
-plot_barchart_positions(positions=booked_positions, model_id=best_trial.last_result["model_id"], target="booked", save_path=plot_path)
-plot_barchart_positions(positions=clicked_positions, model_id=best_trial.last_result["model_id"], target="clicked", save_path=plot_path)
-plot_feature_importance_xgboost_ranker(model=best_model, model_id=best_trial.last_result["model_id"],
-                                       k=10, save_feature_importance=True, save_path=plot_path)
+plot_barchart_positions(positions=booked_positions,
+                        model_id=best_trial.last_result["model_id"], target="booked",
+                        save_path=plot_path)
+plot_barchart_positions(positions=clicked_positions,
+                        model_id=best_trial.last_result["model_id"], target="clicked",
+                        save_path=plot_path)
+plot_feature_importance_xgboost_ranker(model=best_model,
+                                       model_id=best_trial.last_result["model_id"],
+                                       k=10, save_feature_importance=True,
+                                       save_path=plot_path)
 
 # load competition test set
 print("Running predictions on competition test set...")
@@ -186,7 +272,8 @@ scores = best_model.predict(competition_test_data)
 competition_test_data["score"] = scores
 
 with open(os.path.join(current_dir, "predictions",
-                       f"predictions_{best_trial.last_result['model_id']}.csv"), "w", newline='') as f:
+                       f"predictions_{best_trial.last_result['model_id']}.csv"), "w",
+          newline='') as f:
     f.write("srch_id,prop_id\n")
     for qid in competition_test_data['qid'].unique():
         qid_rows = competition_test_data[competition_test_data['qid'] == qid]
