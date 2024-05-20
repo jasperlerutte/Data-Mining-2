@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def ndcg_weighted(preds, labels):
     k = 5
     dcg = 0.0

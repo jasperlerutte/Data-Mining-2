@@ -83,5 +83,58 @@ def plot_barchart_positions(positions: list[int], target: str, model_id: str, sa
     plt.savefig(os.path.join(save_path, f"position_distribution_{model_id}_{target}.png"))
 
 
+def plot_k_and_scores(k: list[int], scores: list[float], save_path: str, model_id: str):
+    """
+    Plot the scores for different values of k.
+    :param k: list of k values
+    :param scores: list of scores corresponding to the k values
+    """
+    plt.figure(figsize=(8, 6))  # Increase figure size
+
+    plt.plot(k, scores, marker='o')
+    plt.xlabel('k', fontsize=12, labelpad=12)  # Increase font size and set labelpad for x-axis label
+    plt.ylabel('NDCG@5', fontsize=12, labelpad=12)  # Increase font size and set labelpad for y-axis label
+
+    # Set y-axis ticks dynamically
+    max_score = max(scores)
+    min_score = min(scores)
+    num_ticks = min(max_score - min_score + 1, 10)  # Maximum 10 ticks
+    plt.locator_params(axis='y', nbins=num_ticks)
+    plt.xticks(k)
+
+    # Adjust layout to ensure all labels are visible
+    plt.tight_layout()
+
+    # Save the plot
+    plt.savefig(
+        os.path.join(save_path, f"k_plot_{model_id}.png"))
+
+
+def plot_n_trees_and_scores(n_trees: list[int], scores: list[float], save_path: str):
+    """
+    Plot the scores for different values of n_trees.
+    :param n_trees: list of n_trees values
+    :param scores: list of scores corresponding to the n_trees values
+    """
+    plt.figure(figsize=(8, 6))  # Increase figure size
+
+    plt.plot(n_trees, scores, marker='o')
+    plt.xlabel('n_trees', fontsize=12, labelpad=12)  # Increase font size and set labelpad for x-axis label
+    plt.ylabel('NDCG@5', fontsize=12, labelpad=12)  # Increase font size and set labelpad for y-axis label
+
+    # Set y-axis ticks dynamically
+    max_score = max(scores)
+    min_score = min(scores)
+    num_ticks = min(max_score - min_score + 1, 10)  # Maximum 10 ticks
+    plt.locator_params(axis='y', nbins=num_ticks)
+    plt.xticks(n_trees)
+
+    # Adjust layout to ensure all labels are visible
+    plt.tight_layout()
+
+    # Save the plot
+    plt.savefig(
+        os.path.join(save_path, f"n_trees_plot_annoy.png"))
+
 
 
