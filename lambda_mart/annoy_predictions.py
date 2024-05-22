@@ -1,6 +1,7 @@
 import os
 import csv
 import itertools
+import numpy as np
 from annoy import AnnoyIndex
 from utils.load_data import load_train_val_test_split
 from dotenv import load_dotenv
@@ -15,7 +16,7 @@ YOUR_TRAIN_FILE = os.getenv("TRAIN_FILE")
 
 
 def score_single_item(item: pd.Series, y_train: pd.Series, model: AnnoyIndex, k: int = 5, ) -> float:
-    k_nn_indices = model.get_nns_by_vector(vector=item, n=k)
+    k_nn_indices = model.get_nns_by_vector(vector=item, n=k, search_k=10)
     k_nn_labels = y_train.iloc[k_nn_indices]
     return k_nn_labels.mean()
 
@@ -25,7 +26,10 @@ def evaluate_set(set: pd.DataFrame, y_test: pd.Series, model: AnnoyIndex, y_trai
     n_queries = 0
     booked_positions = []
     clicked_positions = []
+    print(f"Starting evaluation with k={k}")
+    total_queries = len(set["qid"].unique())
     for qid in set["qid"].unique():
+        print(f"\rQuery {n_queries}/{total_queries}", end="")
         query = set[set["qid"] == qid]
         query = query.drop(columns=["qid"])
         scores = []
@@ -49,10 +53,10 @@ def evaluate_set(set: pd.DataFrame, y_test: pd.Series, model: AnnoyIndex, y_trai
     return {"ndcg": ndcg / n_queries, "booked_positions": booked_positions, "clicked_positions": clicked_positions}
 
 
+print("Loading data")
 train_data, val_data, test_data = load_train_val_test_split(
     YOUR_TRAIN_FILE,
-    drop_original_targets=True, seed=420, n_rows=10000)
-
+    drop_original_targets=True, seed=420)
 
 train_data = train_data.drop(columns=["qid"])
 
@@ -66,9 +70,10 @@ y_test = test_data["label"]
 X_test = test_data.drop(columns=["label"])
 
 n_features = X_train.shape[1]
-n_trees_to_test = [n for n in range(1, 6)]
+n_trees_to_test = [n for n in range(5, 11)]
 possible_k = [k for k in range(1, 6)]
 
+print("Building model")
 model = AnnoyIndex(n_features, 'angular')
 annoy_indices = []
 for i in range(X_train.shape[0]):
@@ -81,6 +86,7 @@ y_train.reindex(annoy_indices)
 results = {}
 
 for n_trees in n_trees_to_test:
+    print(f"Building model with {n_trees} trees")
     model.unbuild()
     model.build(n_trees)
     k_results = {}

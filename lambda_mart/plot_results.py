@@ -2,6 +2,7 @@ import xgboost as xgb
 import os
 import csv
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 def plot_feature_importance_xgboost_ranker(model: xgb.XGBRanker, model_id: str,
@@ -137,4 +138,97 @@ def plot_n_trees_and_scores(n_trees: list[int], scores: list[float], save_path: 
         os.path.join(save_path, f"n_trees_plot_annoy.png"))
 
 
+def plot_training_history(train_csv_files: list[str], series_names: list[str], save_path: str):
+    if len(train_csv_files) != len(series_names):
+        raise ValueError(
+            "The number of CSV files must match the number of series names.")
 
+    plt.figure(figsize=(10, 6))
+
+    for file, name in zip(train_csv_files, series_names):
+        data = pd.read_csv(file)
+        iterations = data['iteration']
+        ndcg_scores = data['ndcg_score']
+
+        plt.plot(iterations, ndcg_scores, label=name)
+
+    plt.xlabel('Iteration', fontsize=12, labelpad=12)
+    plt.ylabel('NDCG', fontsize=12, labelpad=12)
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(
+        os.path.join(save_path, f"training_histories.png"))
+
+
+def plot_multiple_bar_charts_position_numbers(position_csv_files: list[str],
+                                              series_names: list[str], save_path: str):
+    if len(position_csv_files) != len(series_names):
+        raise ValueError(
+            "The number of CSV files must match the number of series names.")
+
+    # Create a figure with two subplots side by side
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(16, 8))
+
+    # Store the maximum y-value for both clicked and booked counts
+    max_clicked = 0
+    max_booked = 0
+
+    for idx, (file, name) in enumerate(zip(position_csv_files, series_names)):
+        data = pd.read_csv(file)
+
+        # Handle the case where 'booked' column might be missing
+        if 'booked' not in data.columns:
+            data['booked'] = None
+
+        clicked_counts = data['clicked'].value_counts().sort_index()
+        booked_counts = data['booked'].dropna().value_counts().sort_index()
+
+        # Plot the 'booked' column bar chart in the first subplot
+        axes[0].bar(booked_counts.index + idx * 0.2, booked_counts.values, width=0.2,
+                    label=name)
+
+        # Plot the 'clicked' column bar chart in the second subplot
+        axes[1].bar(clicked_counts.index + idx * 0.2, clicked_counts.values, width=0.2,
+                    label=name)
+
+        # Update the maximum y-values
+        max_clicked = max(max_clicked, clicked_counts.max())
+        max_booked = max(max_booked, booked_counts.max())
+
+    # Set the y-axis limits to be the same for both subplots, with some white space
+    max_y_value = max(max_clicked, max_booked)
+    buffer = 0.1 * max_y_value  # Adding 10% buffer space
+    axes[0].set_ylim(0, max_y_value + buffer)
+    axes[1].set_ylim(0, max_y_value + buffer)
+
+    # Configure the first subplot for 'booked'
+    axes[0].set_xlabel('Position', fontsize=12, labelpad=12)
+    axes[0].set_title('Booked Hotels')
+    axes[0].legend()
+    axes[0].grid(True)
+
+    # Configure the second subplot for 'clicked'
+    axes[1].set_xlabel('Position', fontsize=12, labelpad=12)
+    axes[1].set_title('Clicked Hotels')
+    axes[1].legend()
+    axes[1].grid(True)
+
+    # Adjust layout and save the figure
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_path, f"position_distributions.png"))
+    plt.close()
+
+
+
+if __name__=="__main__":
+    best_n_tree = 10
+    best_k = 5
+    train_csv_files = [ "plots/positions_engineer_model.csv", "plots/positions_basic_model.csv", f"plots/positions_n_trees_{best_n_tree}_k_{best_k}.csv"]
+    series_names = ["Engineered LambdaMART", "Basic LambdaMART", "ANNoy"]
+    save_path = "plots"
+    plot_multiple_bar_charts_position_numbers(position_csv_files=train_csv_files, series_names=series_names, save_path=save_path)
+
+    train_csv_files = [ "validation_scores/training_history_engineer_model.csv", "validation_scores/training_history_basic_model.csv"]
+    series_names = ["Engineered LambdaMART", "Basic LambdaMART" ]
+    save_path = "plots"
+    plot_training_history(train_csv_files=train_csv_files, series_names=series_names, save_path=save_path)
