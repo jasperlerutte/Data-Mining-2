@@ -29,7 +29,8 @@ print(df.head())
 
 def normalise(data, cols, respect):
     for col in cols:
-        data[f'{col}_norm_{respect}'] = data.groupby(respect)[col].transform(lambda x: (x - x.mean()) / x.std())
+        # data[f'{col}_norm_{respect}'] = data.groupby(respect)[col].transform(lambda x: (x - x.mean()) / x.std())
+        data[f'{col}_norm_{respect}'] = data.groupby(respect)[col].transform(lambda x: 0 if x.std() == 0 else (x - x.mean()) / x.std())
     return data
 
 
@@ -43,20 +44,25 @@ def log_transform(data, cols):
 log_transform_cols = ['price_usd', 'orig_destination_distance', 'comp1_rate_percent_diff','comp2_rate_percent_diff',
                       'comp3_rate_percent_diff', 'comp4_rate_percent_diff', 'comp5_rate_percent_diff',
                       'comp6_rate_percent_diff', 'comp7_rate_percent_diff', 'comp8_rate_percent_diff']
+
 norm_cols = ['prop_log_historical_price', 'price_usd', 'orig_destination_distance', 'comp1_rate_percent_diff',
              'comp2_rate_percent_diff', 'comp3_rate_percent_diff', 'comp4_rate_percent_diff', 'comp5_rate_percent_diff',
              'comp6_rate_percent_diff', 'comp7_rate_percent_diff', 'comp8_rate_percent_diff']
+
 wrt_cols = ['srch_id', 'prop_id', 'month', 'srch_booking_window', 'srch_destination_id', 'prop_country_id']
+
 df_norm = df.copy()
 df_norm = log_transform(df_norm, log_transform_cols)
+
+print('finished with log transformations')
 
 for wrt in wrt_cols:
     df_norm = normalise(df_norm, norm_cols, wrt)
 
 print('finished with normalizations')
 
-df.to_csv(os.path.join(current_dir, 'Data', 'df.csv'), index=False)
-print('finished with df.csv')
+# df.to_csv(os.path.join(current_dir, 'Data', 'df.csv'), index=False)
+# print('finished with df.csv')
 
 df_norm.to_csv(os.path.join(current_dir, 'Data', 'df_norm.csv'), index=False)
 print('finished with df_norm.csv')
