@@ -28,26 +28,27 @@ def plot_feature_importance_xgboost_ranker(model: xgb.XGBRanker, model_id: str,
 
     # Plot feature importance
     plt.barh(range(len(top_k_features)), top_k_scores, align='center')
-    plt.yticks(range(len(top_k_features)), top_k_features)
+    plt.yticks(range(len(top_k_features)), top_k_features, fontsize=20)
 
-    plt.xlabel('Feature Importance Score', fontsize=14, labelpad=20)  # Increase font size and set labelpad for x-axis label
-    plt.ylabel('Feature', fontsize=14, labelpad=20)  # Increase font size and set labelpad for y-axis label
-
-    # Increase font size for tick labels
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
+    # Increase font size for x-tick labels
+    plt.xticks(fontsize=24)
 
     # Order bars by descending feature score
     plt.gca().invert_yaxis()
 
+    # Adjust layout to ensure all labels are visible
+    plt.tight_layout()
+    plt.subplots_adjust(left=0.5)  # Adjust the left margin to ensure y-axis labels are not cut off
+
+    plt.savefig(os.path.join(save_path, f"feature_importance_{model_id}.png"))
+
     if save_feature_importance:
-        plt.tight_layout()  # Adjust layout to ensure all labels are visible
-        plt.savefig(os.path.join(save_path, f"feature_importance_{model_id}.png"))
         with open(os.path.join(save_path, f"feature_importance_{model_id}.csv"), "w", newline='') as f:
             writer = csv.writer(f)
             writer.writerow(["Feature", "Importance Score"])
             for feature, score in sorted_scores:
                 writer.writerow([feature, score])
+
 
 
 def plot_barchart_positions(positions: list[int], target: str, model_id: str, save_path: str):
@@ -202,16 +203,20 @@ def plot_multiple_bar_charts_position_numbers(position_csv_files: list[str],
     axes[1].set_ylim(0, max_y_value + buffer)
 
     # Configure the first subplot for 'booked'
-    axes[0].set_xlabel('Position', fontsize=12, labelpad=12)
-    axes[0].set_title('Booked Hotels')
+    axes[0].set_xlabel('Position', fontsize=16, labelpad=12)
+    axes[0].set_title('Booked Hotels', fontsize=18)
     axes[0].legend()
     axes[0].grid(True)
 
     # Configure the second subplot for 'clicked'
-    axes[1].set_xlabel('Position', fontsize=12, labelpad=12)
-    axes[1].set_title('Clicked Hotels')
+    axes[1].set_xlabel('Position', fontsize=16, labelpad=12)
+    axes[1].set_title('Clicked Hotels', fontsize=18)
     axes[1].legend()
     axes[1].grid(True)
+
+    # Change font size of the x and y-axis ticks
+    axes[0].tick_params(axis='both', which='major', labelsize=14)
+    axes[1].tick_params(axis='both', which='major', labelsize=14)
 
     # Adjust layout and save the figure
     plt.tight_layout()
@@ -221,14 +226,14 @@ def plot_multiple_bar_charts_position_numbers(position_csv_files: list[str],
 
 
 if __name__=="__main__":
-    best_n_tree = 10
-    best_k = 5
-    train_csv_files = [ "plots/positions_engineer_model.csv", "plots/positions_basic_model.csv", f"plots/positions_n_trees_{best_n_tree}_k_{best_k}.csv"]
-    series_names = ["Engineered LambdaMART", "Basic LambdaMART", "ANNoy"]
-    save_path = "plots"
-    plot_multiple_bar_charts_position_numbers(position_csv_files=train_csv_files, series_names=series_names, save_path=save_path)
+    basic_model_path = r"C:\Users\robbe\PycharmProjects\Data-Mining-2\lambda_mart\model_checkpoints\basic_model.json"
+    engineered_model_path = r"C:\Users\robbe\PycharmProjects\Data-Mining-2\lambda_mart\model_checkpoints\engineer_model.json"
+    engineered_model = xgb.XGBRanker()
+    engineered_model.load_model(engineered_model_path)
+    plot_feature_importance_xgboost_ranker(model=engineered_model, save_path=r"C:\Users\robbe\PycharmProjects\Data-Mining-2\lambda_mart\plots",
+                                           model_id="engineer_model", save_feature_importance=False)
 
-    train_csv_files = [ "validation_scores/training_history_engineer_model.csv", "validation_scores/training_history_basic_model.csv"]
-    series_names = ["Engineered LambdaMART", "Basic LambdaMART" ]
-    save_path = "plots"
-    plot_training_history(train_csv_files=train_csv_files, series_names=series_names, save_path=save_path)
+    basic_model = xgb.XGBRanker()
+    basic_model.load_model(basic_model_path)
+    plot_feature_importance_xgboost_ranker(model=basic_model, save_path=r"C:\Users\robbe\PycharmProjects\Data-Mining-2\lambda_mart\plots",
+                                             model_id="basic_model", save_feature_importance=False)
