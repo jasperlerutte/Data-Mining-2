@@ -41,12 +41,15 @@ def load_train_val_test_split(data_file: str, n_rows: int = None, frac_val: floa
                               frac_test: float = 0.2,
                               drop_original_targets: bool = True,
                               booking_score: int = 5, clicking_score: int = 1,
-                              seed: int = 420) -> tuple[
+                              seed: int = 420, drop_extra_columns: list[str] = None) -> tuple[
     pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     np.random.seed(seed)
     df = load_data(data_file, n_rows=n_rows)
 
-    columns_to_drop = ["date_time", "gross_bookings_usd", "position", "random_bool"]
+    columns_to_drop = ["date_time", "gross_bookings_usd", "position"]
+
+    if drop_extra_columns is not None:
+        columns_to_drop += drop_extra_columns
 
     for column in columns_to_drop:
         if column in df.columns:
